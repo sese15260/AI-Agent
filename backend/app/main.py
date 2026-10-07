@@ -1,9 +1,11 @@
 import json
 import os
+import secrets
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from openai import OpenAI
 
 from . import store
@@ -13,7 +15,26 @@ from .summary import summarize
 load_dotenv()
 app = FastAPI(title="삼성전자 주가 AI 채팅", version="1.0.0")
 origins = [x.strip() for x in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if x.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
+class AccessLinkMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] == "OPTIONS" or scope["path"] == "/health":
+            return await self.app(scope, receive, send)
+        required = os.getenv("SITE_ACCESS_TOKEN", "")
+        supplied = dict(scope["headers"]).get(b"x-access-key", b"").decode("utf-8", errors="replace")
+        if not required:
+            response = JSONResponse({"detail": "접속 코드가 설정되지 않았습니다"}, status_code=503)
+        elif not supplied or not secrets.compare_digest(supplied, required):
+            response = JSONResponse({"detail": "전용 URL로 접속해 주세요"}, status_code=401)
+        else:
+            return await self.app(scope, receive, send)
+        await response(scope, receive, send)
+
+
+app.add_middleware(AccessLinkMiddleware)
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Access-Key"])
 
 
 @app.get("/health")
