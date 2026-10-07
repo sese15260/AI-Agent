@@ -41,17 +41,18 @@ def test_chat_injects_summary_and_saves(monkeypatch):
         saved.update({"title": title, "messages": messages})
         return {"id": "c1"}
     monkeypatch.setattr(main.store, "conversation_save", save)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
-    class FakeCompletions:
-        def create(self, **kwargs):
-            prompts.extend(kwargs["messages"])
-            return type("Response", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": "최근 종가는 105원입니다."})()})()]})()
-    class FakeOpenAI:
+    monkeypatch.setenv("GEMINI_API_KEY", "test-only")
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            prompts.append(kwargs)
+            return type("Response", (), {"text": "최근 종가는 105원입니다."})()
+    class FakeClient:
         def __init__(self, **kwargs):
-            self.chat = type("Chat", (), {"completions": FakeCompletions()})()
-    monkeypatch.setattr(main, "OpenAI", FakeOpenAI)
+            self.models = FakeModels()
+    monkeypatch.setattr(main.genai, "Client", FakeClient)
     response = TestClient(main.app).post("/api/chat", json={"message": "최근 종가는?"})
     assert response.status_code == 200
     assert response.json()["conversation_id"] == "c1"
-    assert '"latest": 105.0' in prompts[0]["content"]
+    assert '"latest": 105.0' in prompts[0]["config"].system_instruction
+    assert prompts[0]["contents"][-1].role == "user"
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]
