@@ -1,8 +1,10 @@
 .env
 .venv/
+.deps/
 __pycache__/
 .pytest_cache/
 *.pyc
 *service-account*.json
 *firebase-key*.json
+*firebase-adminsdk*.json
 frontend/dist/
