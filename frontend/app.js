@@ -1,8 +1,17 @@
 const base = (window.API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 const $ = id => document.getElementById(id);
+const fragment = new URLSearchParams(location.hash.slice(1));
+const incomingKey = fragment.get('access');
+if (incomingKey) {
+  sessionStorage.setItem('siteAccessKey', incomingKey);
+  history.replaceState(null, '', location.pathname + location.search);
+}
+const accessKey = sessionStorage.getItem('siteAccessKey');
+document.querySelector('main').hidden = !accessKey;
+$('access-gate').hidden = !!accessKey;
 let activeId = null, rows = [], editingId = null;
 async function request(path, options={}) {
-  const response = await fetch(base + path, {headers:{"Content-Type":"application/json"}, ...options});
+  const response = await fetch(base + path, {...options, headers:{"Content-Type":"application/json","X-Access-Key":accessKey,...options.headers}});
   const body = await response.json().catch(()=>({}));
   if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
   return body;
@@ -27,4 +36,5 @@ $('cancel-edit').onclick=()=>{editingId=null;$('data-form').reset();$('save-data
 $('new-chat').onclick=()=>{activeId=null;renderMessages([]);loadConversations();};
 $('refresh').onclick=()=>refresh().catch(e=>notice(e.message));
 $('chat-form').onsubmit=async e=>{e.preventDefault();const input=$('chat-input');const message=input.value.trim();if(!message)return;input.value='';const current=[...$('messages').querySelectorAll('.bubble')].map(el=>({role:el.classList.contains('user')?'user':'assistant',content:el.textContent}));renderMessages([...current,{role:'user',content:message}]);$('chat-loading').hidden=false;input.disabled=true;try{const result=await request('/api/chat',{method:'POST',body:JSON.stringify({message,conversation_id:activeId})});activeId=result.conversation_id;renderMessages([...current,{role:'user',content:message},{role:'assistant',content:result.answer}]);await loadConversations();}catch(error){renderMessages(current);alert(error.message);}finally{$('chat-loading').hidden=true;input.disabled=false;input.focus();}};
-Promise.all([refresh(),loadConversations(),request('/health')]).then(()=>$('status').textContent='API 연결됨').catch(e=>{$('status').textContent='API 연결 실패';notice(e.message);});
+if (accessKey) Promise.all([refresh(),loadConversations()]).then(()=>$('status').textContent='API 연결됨').catch(e=>{$('status').textContent='API 연결 실패';notice(e.message);});
+else $('status').textContent='접속 제한';
