@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>삼성전자 데이터 채팅</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><div><small>STOCK DATA ASSISTANT · 005930</small><h1>삼성전자 데이터 채팅</h1><p>저장된 종가를 바탕으로 묻고, 추세를 확인하세요.</p></div><span id="status">연결 확인 중</span></header>
+  <main>
+    <aside class="left panel"><div class="section-head"><h2>대화 기록</h2><button id="new-chat">새 대화</button></div><div id="conversations"></div></aside>
+    <section class="center panel"><div class="section-head"><h2>AI 채팅</h2><span>데이터 기준 답변</span></div><div id="messages" aria-live="polite"><div class="empty">최근 주가의 흐름이나 최고·최저 종가를 물어보세요.</div></div><form id="chat-form"><input id="chat-input" maxlength="2000" required placeholder="예: 최근 20거래일 추세는 어때?" autocomplete="off"><button>전송</button></form><div id="chat-loading" hidden>답변을 만드는 중… Render 무료 서비스는 첫 요청에 시간이 걸릴 수 있습니다.</div></section>
+    <aside class="right"><section class="panel"><div class="section-head"><h2>데이터 요약</h2><button id="refresh">새로고침</button></div><div id="summary">불러오는 중…</div></section><section class="panel"><div class="section-head"><h2>종가 관리</h2><span>단위: 원</span></div><form id="data-form"><label>날짜<input type="date" id="date" required></label><label>종가<input type="number" id="value" min="1" step="0.01" required></label><label>메모<input id="memo" maxlength="300" placeholder="선택 사항"></label><button id="save-data">데이터 추가</button><button type="button" id="cancel-edit" hidden>수정 취소</button></form><p id="notice" role="status"></p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>종가</th><th>관리</th></tr></thead><tbody id="data-rows"></tbody></table></div></section></aside>
+  </main>
+  <script src="config.js"></script><script src="app.js"></script>
+</body></html>
