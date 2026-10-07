@@ -41,18 +41,19 @@ def test_chat_injects_summary_and_saves(monkeypatch):
         saved.update({"title": title, "messages": messages})
         return {"id": "c1"}
     monkeypatch.setattr(main.store, "conversation_save", save)
-    monkeypatch.setenv("GEMINI_API_KEY", "test-only")
-    class FakeModels:
-        def generate_content(self, **kwargs):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    class FakeResponses:
+        def create(self, **kwargs):
             prompts.append(kwargs)
-            return type("Response", (), {"text": "최근 종가는 105원입니다."})()
+            return type("Response", (), {"output_text": "최근 종가는 105원입니다."})()
     class FakeClient:
         def __init__(self, **kwargs):
-            self.models = FakeModels()
-    monkeypatch.setattr(main.genai, "Client", FakeClient)
+            self.responses = FakeResponses()
+    monkeypatch.setattr(main, "OpenAI", FakeClient)
     response = TestClient(main.app).post("/api/chat", json={"message": "최근 종가는?"})
     assert response.status_code == 200
     assert response.json()["conversation_id"] == "c1"
-    assert '"latest": 105.0' in prompts[0]["config"].system_instruction
-    assert prompts[0]["contents"][-1].role == "user"
+    assert '"latest": 105.0' in prompts[0]["instructions"]
+    assert prompts[0]["input"][-1]["role"] == "user"
+    assert prompts[0]["store"] is False
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]
