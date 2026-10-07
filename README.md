@@ -21,7 +21,7 @@
 
 ## 로컬 실행
 
-Python 3.10 이상과 Node.js 18 이상을 준비합니다. Firebase 프로젝트에서 Firestore Database를 만들고 서비스 계정 JSON을 발급받은 뒤, OpenAI API 키를 발급받습니다. 비밀키를 저장소에 추가하지 마세요.
+Python 3.10 이상과 Node.js 18 이상을 준비합니다. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트를 만들고 Firestore Database를 **프로덕션 모드**로 생성합니다. 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성에서 JSON을 받아 저장소 **밖**에 보관합니다. [OpenAI API 키 페이지](https://platform.openai.com/api-keys)에서 프로젝트 키를 발급받습니다. 비밀키를 저장소에 추가하지 마세요.
 
 ```powershell
 cd backend
@@ -29,7 +29,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# .env에 실제 키, 서비스 계정 JSON 또는 파일 경로를 설정
+# .env에 실제 키와 저장소 밖의 서비스 계정 파일 경로를 설정
 python seed.py
 uvicorn app.main:app --reload
 ```
@@ -101,7 +101,7 @@ pip install pytest httpx
 pytest -q
 ```
 
-테스트는 데이터 250건의 날짜/값 유효성과 핵심 API 입력 검증을 확인하며, 외부 유료 API를 호출하지 않습니다. 실제 Firestore·OpenAI 통합 동작과 제출 스크린샷은 계정 키를 설정한 뒤 확인해야 합니다.
+테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 실제 Firestore·OpenAI 통합 동작과 제출 스크린샷은 계정 키를 설정한 뒤 확인해야 합니다.
 
 ## 보너스 과제
 
