@@ -4,7 +4,7 @@
 
 ## 기술 스택
 
-- 백엔드: Python 3.10+, FastAPI, Pydantic, Firebase Admin SDK / Firestore, Gemini API (`google-genai`)
+- 백엔드: Python 3.10+, FastAPI, Pydantic, Firebase Admin SDK / Firestore, OpenAI Responses API (`openai`)
 - 프론트엔드: HTML, CSS, 바닐라 JavaScript
 - 배포 대상: Render Web Service(백엔드), Vercel Static Site(프론트엔드)
 
@@ -21,7 +21,7 @@
 
 ## 로컬 실행
 
-Python 3.10 이상과 Node.js 18 이상을 준비합니다. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트를 만들고 Firestore Database를 **프로덕션 모드**로 생성합니다. 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성에서 JSON을 받아 저장소 **밖**에 보관합니다. Firebase 콘솔 접근에 [Google 계정 2단계 인증이 필수일 수 있습니다](https://docs.cloud.google.com/docs/authentication/mfa-requirement). [Google AI Studio](https://aistudio.google.com/app/apikey)에서 Gemini API 키를 발급받습니다. 비밀키를 저장소에 추가하지 마세요.
+Python 3.10 이상과 Node.js 18 이상을 준비합니다. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트를 만들고 Firestore Database를 **프로덕션 모드**로 생성합니다. 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성에서 JSON을 받아 저장소 **밖**에 보관합니다. Firebase 콘솔 접근에 [Google 계정 2단계 인증이 필수일 수 있습니다](https://docs.cloud.google.com/docs/authentication/mfa-requirement). [OpenAI Platform](https://platform.openai.com/api-keys)에서 API 키를 발급받습니다. ChatGPT 구독과 API 요금은 별개이므로 사용량과 결제 설정을 확인하세요. 비밀키를 저장소에 추가하지 마세요.
 
 ```powershell
 cd backend
@@ -49,8 +49,8 @@ python -m http.server 3000
 
 | 위치 | 변수 | 설명 |
 |---|---|---|
-| 백엔드 | `GEMINI_API_KEY` | Gemini API 비밀키 |
-| 백엔드 | `GEMINI_MODEL` | 선택. 기본값 `gemini-3.8-flash` |
+| 백엔드 | `OPENAI_API_KEY` | OpenAI API 비밀키 |
+| 백엔드 | `OPENAI_MODEL` | 선택. 기본값 `gpt-4.1-mini` |
 | 백엔드 | `FIREBASE_SERVICE_ACCOUNT_JSON` | 서비스 계정 JSON 전체 문자열 |
 | 백엔드 | `FIREBASE_SERVICE_ACCOUNT_PATH` | JSON 대신 사용할 로컬 파일 경로 |
 | 백엔드 | `ALLOWED_ORIGINS` | 쉼표로 구분한 프론트 주소. 마지막 `/` 없이 설정 |
@@ -74,7 +74,7 @@ python -m http.server 3000
 ## 배포
 
 1. 이 폴더를 GitHub 저장소에 푸시합니다. `.env`와 서비스 계정 JSON이 포함되지 않았는지 `git status`로 확인합니다.
-2. Render에서 GitHub 저장소를 연결하고 저장소 루트의 [`render.yaml`](render.yaml)로 Blueprint를 만들거나 Web Service를 수동 생성합니다. Root Directory `backend`, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`입니다. Render 대시보드에서 `GEMINI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`를 비밀 환경 변수로 입력합니다.
+2. Render에서 GitHub 저장소를 연결하고 저장소 루트의 [`render.yaml`](render.yaml)로 Blueprint를 만들거나 Web Service를 수동 생성합니다. Root Directory `backend`, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`입니다. Render 대시보드에서 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`를 비밀 환경 변수로 입력합니다.
 3. Firestore에 초기 데이터를 넣습니다. 로컬에서 Render와 같은 Firebase 프로젝트 키를 설정한 뒤 `cd backend; python seed.py`를 한 번 실행합니다. 250건을 날짜 ID로 덮어써 재실행해도 중복되지 않습니다.
 4. Vercel에서 같은 저장소를 연결하고 Root Directory를 `frontend`로 설정합니다. 환경 변수 `API_BASE_URL=https://<render-service>.onrender.com`을 입력하고 배포합니다. `frontend/build.mjs`가 이 값을 공개 `config.js`에 삽입합니다.
 5. Vercel URL을 Render `ALLOWED_ORIGINS`에 추가하고 Render를 다시 배포합니다. Vercel 채팅 화면과 Render `/docs`를 확인합니다. 무료 Render 서비스는 첫 요청이 느릴 수 있어 화면에 안내 문구가 있습니다.
@@ -87,7 +87,7 @@ python -m http.server 3000
 
 ## 제출 스크린샷
 
-실제 Firebase/Gemini 연결과 배포 후 다음 화면을 캡처해 `screenshots/`에 보관합니다. 비밀키가 보이지 않게 하세요.
+실제 Firebase/OpenAI 연결과 배포 후 다음 화면을 캡처해 `screenshots/`에 보관합니다. 비밀키가 보이지 않게 하세요.
 
 1. 데이터 요약과 사용자 질문·AI 답변이 동시에 보이는 채팅 화면
 2. 종가 추가 또는 수정·삭제 결과가 보이는 데이터 관리 화면
@@ -101,9 +101,8 @@ pip install pytest httpx
 pytest -q
 ```
 
-테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 실제 Firestore·Gemini 통합 동작과 제출 스크린샷은 계정 키를 설정한 뒤 확인해야 합니다.
+테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 실제 Firestore·OpenAI 통합 동작과 제출 스크린샷은 계정 키를 설정한 뒤 확인해야 합니다.
 
-**과제 기준 차이:** 원래 과제는 OpenAI API를 필수로 명시합니다. 요청에 따라 이 구현은 Gemini API를 사용하므로 채점 기준의 해당 항목과 다릅니다. 제출 전에 담당자에게 대체 가능 여부를 확인하세요.
 
 ## 보너스 과제
 
