@@ -28,13 +28,17 @@ def test_endpoints_and_validation(monkeypatch):
     monkeypatch.setattr(main.store, "conversation_save", lambda title, messages, id=None: {"id": id or "c1", "title": title, "messages": messages})
     client = TestClient(main.app, headers={"X-Access-Key": "test-access-key"})
     assert client.get("/health").status_code == 200
-    assert TestClient(main.app).get("/api/data").status_code == 401
-    assert TestClient(main.app, headers={"X-Access-Key": "wrong"}).get("/api/data").status_code == 401
+    assert TestClient(main.app).get("/api/data").status_code == 200
+    assert TestClient(main.app).get("/api/data/summary").status_code == 200
+    assert TestClient(main.app).post("/api/data", json={"date": "2026-01-01", "value": 100}).status_code == 401
+    assert TestClient(main.app, headers={"X-Access-Key": "wrong"}).get("/api/conversations").status_code == 401
     assert TestClient(main.app).get("/docs").status_code == 200
     schema = TestClient(main.app).get("/openapi.json")
     assert schema.status_code == 200
     assert schema.json()["components"]["securitySchemes"]["AccessKey"]["name"] == "X-Access-Key"
-    assert schema.json()["paths"]["/api/data"]["get"]["security"] == [{"AccessKey": []}]
+    assert "security" not in schema.json()["paths"]["/api/data"]["get"]
+    assert "security" not in schema.json()["paths"]["/api/chat"]["post"]
+    assert schema.json()["paths"]["/api/data"]["post"]["security"] == [{"AccessKey": []}]
     assert client.get("/docs").status_code == 200
     assert client.post("/api/data", json={"date": "2026-01-01", "value": -1}).status_code == 422
     assert client.post("/api/data", json={"date": "2026-01-01", "value": 100, "memo": "test"}).status_code == 201
@@ -63,7 +67,7 @@ def test_chat_injects_summary_and_saves(monkeypatch):
         def __init__(self, **kwargs):
             self.responses = FakeResponses()
     monkeypatch.setattr(main, "OpenAI", FakeClient)
-    response = TestClient(main.app, headers={"X-Access-Key": "test-access-key"}).post("/api/chat", json={"message": "최근 종가는?"})
+    response = TestClient(main.app).post("/api/chat", json={"message": "최근 종가는?"})
     assert response.status_code == 200
     assert response.json()["conversation_id"] == "c1"
     assert '"latest": 105.0' in prompts[0]["instructions"]

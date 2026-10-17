@@ -22,7 +22,10 @@ class AccessLinkMiddleware:
 
     async def __call__(self, scope, receive, send):
         public_paths = {"/health", "/docs", "/openapi.json", "/redoc"}
-        if scope["type"] != "http" or scope["method"] == "OPTIONS" or scope["path"] in public_paths:
+        public_api = scope["type"] == "http" and (scope["method"], scope["path"]) in {
+            ("GET", "/api/data"), ("GET", "/api/data/summary"), ("POST", "/api/chat")
+        }
+        if scope["type"] != "http" or scope["method"] == "OPTIONS" or scope["path"] in public_paths or public_api:
             return await self.app(scope, receive, send)
         required = os.getenv("SITE_ACCESS_TOKEN", "")
         supplied = dict(scope["headers"]).get(b"x-access-key", b"").decode("utf-8", errors="replace")
@@ -152,8 +155,9 @@ def access_key_openapi():
     }
     for path, operations in schema["paths"].items():
         if path.startswith("/api/"):
-            for operation in operations.values():
-                operation["security"] = [{"AccessKey": []}]
+            for method, operation in operations.items():
+                if (method, path) not in {("get", "/api/data"), ("get", "/api/data/summary"), ("post", "/api/chat")}:
+                    operation["security"] = [{"AccessKey": []}]
     app.openapi_schema = schema
     return schema
 

@@ -1,127 +1,55 @@
-# 삼성전자 데이터 채팅
+# 삼성전자 주가 데이터 채팅
 
-삼성전자(005930)의 일별 종가를 Firestore에 보관하고, 요약 통계를 AI 채팅의 시스템 문맥에 넣어 데이터에 근거한 답변을 제공하는 웹 서비스입니다. 투자 판단이나 실시간 시세 제공 목적이 아닙니다.
+삼성전자(005930)의 일별 종가를 조회·관리하고, 저장된 데이터 요약을 바탕으로 AI와 대화하는 웹 서비스입니다. 실시간 시세나 투자 조언을 제공하지 않습니다.
 
-## 과제 체크리스트
+## 서비스
 
-| 요구사항 | 상태 | 확인 위치 |
-|---|---|---|
-| 100개 이상 시계열 데이터 | 완료 | 250거래일 CSV |
-| FastAPI · Firestore · OpenAI API | FastAPI·Firestore 연결 완료, OpenAI 키 입력 대기 | `backend/app/` |
-| 데이터 CRUD · 요약 API | 완료 | `/api/data`, `/api/data/summary` |
-| 대화 기록 저장 · 불러오기 | 완료 | `/api/conversations` |
-| 요약을 반영한 AI 채팅 | 코드 완료, 실제 응답 검증 대기 | `/api/chat` |
-| 바닐라 HTML · CSS · JavaScript | 완료 | `frontend/` |
-| Render · Vercel 배포 | 완료 | 아래 실제 URL |
-| README · 제출 스크린샷 | 운영 화면·API 문서 캡처 완료, AI 답변 캡처 대기 | 이 문서, `screenshots/` |
+- [웹사이트](https://sese15260-samsung-stock-chat.vercel.app/)
+- [API 문서](https://sese15260-samsung-stock-api.onrender.com/docs)
 
-기존 저장소의 CSV와 API 구조를 유지하며 누락된 검증·요약·화면 기능을 보완했습니다. 로컬 UI 미리보기는 실제 서비스 캡처로 제출하지 않습니다.
+링크를 열면 주가 조회와 AI 채팅을 이용할 수 있습니다. 종가 수정·삭제와 전체 대화 기록 관리는 관리자 접속 코드가 필요합니다. AI 답변은 서버에 OpenAI API 키가 설정된 뒤 이용할 수 있습니다.
 
-## 기술 스택
+## 주요 기능
 
-- 백엔드: Python 3.10+, FastAPI, Pydantic, Firebase Admin SDK / Firestore, OpenAI Responses API (`openai`)
-- 프론트엔드: HTML, CSS, 바닐라 JavaScript
-- 배포 대상: Render Web Service(백엔드), Vercel Static Site(프론트엔드)
+- 삼성전자 종가 **250거래일**(2025-09-24~2026-10-07) 조회 및 추가·수정·삭제
+- 평균, 최고·최저, 최근 20거래일 추세 요약과 종가 그래프
+- 데이터 요약을 반영한 AI 채팅과 대화 기록 저장·불러오기
+- CSV 내보내기, 라이트·다크 모드
 
-## 데이터
+## 기술 구성
 
-- 종목: 삼성전자(005930), 일별 종가(원)
-- 기간: **2025-09-24 ~ 2026-10-07**, **250거래일**
-- 파일: [`backend/data/samsung_005930_daily.csv`](backend/data/samsung_005930_daily.csv)
-- 수집: [FinanceDataReader 공식 프로젝트](https://github.com/FinanceData/FinanceDataReader)의 `DataReader('005930', '2025-01-01', '2026-10-08')` 결과 중 마지막 250건. 2026-10-07에 수집했습니다. 시세의 정정·수정주가 처리 방식은 제공처에 따릅니다.
-- CSV SHA-256: `48268aacc23d322c64427a341085e06d119354c669ca0bb18846c46e72b91e76`
-- CSV의 `date`, `value`, `memo`가 각각 거래일, 종가, 설명입니다. 데이터는 앱 시작 시 자동 반영되지 않습니다. 최초 배포 때 `seed.py`를 실행해야 합니다.
+| 구성 | 기술 |
+|---|---|
+| 프론트엔드 | HTML, CSS, 바닐라 JavaScript · Vercel |
+| 백엔드 | FastAPI · Render |
+| 데이터베이스 | Firebase Firestore |
+| AI | OpenAI Responses API |
 
-요약은 전체 기간의 평균·최대·최소·첫·최근 종가, 전체 변동률, 최근 20거래일 첫날 대비 변동률, 월별 평균과 최근 20개 종가를 계산합니다. 변동률이 +1% 초과면 상승, -1% 미만이면 하락, 나머지는 보합으로 표시합니다. 채팅은 이 요약을 주입하므로 요약에 없는 개별 거래일 가격은 단정하지 않습니다.
+원본 데이터는 [`backend/data/samsung_005930_daily.csv`](backend/data/samsung_005930_daily.csv)에 있습니다. [FinanceDataReader](https://github.com/FinanceData/FinanceDataReader)의 삼성전자 일별 종가 중 마지막 250건을 사용했습니다.
 
 ## 로컬 실행
 
-Python 3.10 이상과 Node.js 18 이상을 준비합니다. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트를 만들고 Firestore Database를 **프로덕션 모드**로 생성합니다. 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성에서 JSON을 받아 저장소 **밖**에 보관합니다. Firebase 콘솔 접근에 [Google 계정 2단계 인증이 필수일 수 있습니다](https://docs.cloud.google.com/docs/authentication/mfa-requirement). [OpenAI Platform](https://platform.openai.com/api-keys)에서 API 키를 발급받습니다. ChatGPT 구독과 API 요금은 별개이므로 사용량과 결제 설정을 확인하세요. 비밀키를 저장소에 추가하지 마세요.
+Python 3.10 이상과 Node.js 18 이상이 필요합니다. `backend/.env.example`을 `backend/.env`로 복사한 뒤 Firebase 서비스 계정 파일 경로, OpenAI API 키, 접속 코드, 허용 프론트 주소를 설정합니다. 비밀키 파일과 `.env`는 Git에 올리지 않습니다.
 
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env
-# .env에 실제 키와 저장소 밖의 서비스 계정 파일 경로를 설정
-python seed.py --dry-run  # 250건과 기간 확인, Firestore 쓰기 없음
-python seed.py            # 빠진 날짜만 Firestore에 추가
+python seed.py --dry-run
+python seed.py
 uvicorn app.main:app --reload
 ```
 
-백엔드: `http://localhost:8000`, Swagger UI: `http://localhost:8000/docs`.
-
-프론트는 `frontend/config.js`의 로컬 API 주소를 확인한 뒤 별도 터미널에서 실행합니다.
+다른 터미널에서 프론트엔드를 실행합니다.
 
 ```powershell
 cd frontend
 python -m http.server 3000
 ```
 
-`http://localhost:3000/#access=<SITE_ACCESS_TOKEN>`에 접속합니다. 로컬 CORS 허용 주소는 `backend/.env`의 `ALLOWED_ORIGINS`에 포함돼야 합니다.
+로컬 주소는 `http://localhost:3000`입니다. 관리자 기능은 `#access=<SITE_ACCESS_TOKEN>`을 붙인 주소로 사용할 수 있습니다. 자동 테스트는 `cd backend`에서 `pytest -q`로 실행합니다.
 
-## 환경 변수
+## 배포 설정
 
-| 위치 | 변수 | 설명 |
-|---|---|---|
-| 백엔드 | `OPENAI_API_KEY` | OpenAI API 비밀키 |
-| 백엔드 | `OPENAI_MODEL` | 선택. 기본값 `gpt-6-luna` |
-| 백엔드 | `FIREBASE_SERVICE_ACCOUNT_JSON` | 서비스 계정 JSON 전체 문자열 |
-| 백엔드 | `FIREBASE_SERVICE_ACCOUNT_PATH` | JSON 대신 사용할 로컬 파일 경로 |
-| 백엔드 | `ALLOWED_ORIGINS` | 쉼표로 구분한 프론트 주소. 마지막 `/` 없이 설정 |
-| 프론트 Vercel 빌드 | `API_BASE_URL` | Render API 주소. 마지막 `/` 없이 설정 |
+Render는 `backend`를 루트로 사용하며 `render.yaml`에 실행 설정이 있습니다. 비밀 환경 변수 `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, `SITE_ACCESS_TOKEN`과 프론트 주소를 담은 `ALLOWED_ORIGINS`가 필요합니다. Vercel은 `frontend`를 루트로 사용하고 빌드 변수 `API_BASE_URL`에 Render 서버 주소를 설정합니다.
 
-로컬 `.env`, 서비스 계정 파일, 빌드 결과는 `.gitignore`로 제외합니다. Vercel의 `API_BASE_URL`은 **공개 주소**이므로 비밀키를 넣지 마세요.
-
-## API
-
-| 메서드 | 경로 | 기능 |
-|---|---|---|
-| POST / GET | `/api/data` | 종가 추가 / 전체 조회 |
-| PUT / DELETE | `/api/data/{id}` | 날짜 ID의 데이터 수정 / 삭제 |
-| GET | `/api/data/summary` | 요약 통계 |
-| POST / GET | `/api/conversations` | 대화 저장 / 목록 조회. 목록에 messages 포함 |
-| GET / DELETE | `/api/conversations/{id}` | 전체 대화 불러오기 / 삭제 |
-| POST | `/api/chat` | 요약을 시스템 문맥에 넣고 AI 응답 생성, 대화 자동 저장 |
-
-`POST /api/chat` 예시: `{"message":"최근 20거래일 추세는?","conversation_id":null}`. 기존 대화의 `conversation_id`를 넘기면 이어서 저장합니다. 사용자 질문은 최대 2,000자, 출력은 최대 500토큰으로 제한합니다. Firestore 컬렉션은 `data`, `conversations`입니다. `data` 문서 ID는 거래일 문자열이며 대화 ID는 Firestore 자동 ID입니다.
-
-## 배포
-
-1. 이 폴더를 GitHub 저장소에 푸시합니다. `.env`와 서비스 계정 JSON이 포함되지 않았는지 `git status`로 확인합니다.
-2. Render에서 GitHub 저장소를 연결하고 저장소 루트의 [`render.yaml`](render.yaml)로 Blueprint를 만들거나 Web Service를 수동 생성합니다. `render.yaml`은 무료 인스턴스를 명시합니다. Root Directory `backend`, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`입니다. Render 대시보드에서 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`, `SITE_ACCESS_TOKEN`을 비밀 환경 변수로 입력합니다.
-3. Firestore에 초기 데이터를 넣습니다. 로컬에서 Render와 같은 Firebase 프로젝트 키를 설정한 뒤 `cd backend; python seed.py`를 실행합니다. 재실행하면 이미 있는 날짜는 건너뛰어 사용자가 수정한 데이터를 덮어쓰지 않습니다.
-4. Vercel에서 같은 저장소를 연결하고 Root Directory를 `frontend`로 설정합니다. 환경 변수 `API_BASE_URL=https://<render-service>.onrender.com`을 입력하고 배포합니다. `frontend/build.mjs`가 이 값을 공개 `config.js`에 삽입합니다.
-5. Vercel URL을 Render `ALLOWED_ORIGINS`에 추가하고 Render를 다시 배포합니다. Vercel 채팅 화면과 Render `/docs`를 확인합니다. 무료 Render 서비스는 첫 요청이 느릴 수 있어 화면에 안내 문구가 있습니다.
-
-| 제출 URL | 값 |
-|---|---|
-| 프론트엔드 | https://sese15260-samsung-stock-chat.vercel.app/ |
-| 백엔드 API | https://sese15260-samsung-stock-api.onrender.com |
-| Swagger UI | https://sese15260-samsung-stock-api.onrender.com/docs |
-
-현재 Render에는 `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`, `SITE_ACCESS_TOKEN`이 비밀 환경 변수로 설정되어 있습니다. OpenAI 채팅을 켜려면 Render 서비스의 **Environment → Edit → Add variable**에서 `OPENAI_API_KEY`를 추가하고 **Save, rebuild, and deploy**를 선택합니다. 키는 채팅이나 GitHub에 입력하지 않습니다.
-
-## 제출 스크린샷
-
-현재 실제 배포 화면을 `screenshots/live-dashboard.png`와 `screenshots/live-api-docs.png`에 보관했습니다. 전자는 Firestore의 250건 요약·그래프·관리 화면, 후자는 공개 API 목록을 보여줍니다. OpenAI 키 설정 후 AI 질문·답변과 저장된 대화 재불러오기 화면을 추가해야 합니다. 비밀키나 전용 접속 코드는 캡처하지 마세요.
-
-## 로컬 검증
-
-```powershell
-cd backend
-pip install pytest httpx
-pytest -q
-```
-
-테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 배포 화면에서 Firestore 250건과 요약을 확인했습니다. OpenAI 실응답은 사용자가 키를 설정한 뒤 확인해야 합니다.
-
-
-## 보너스 과제
-
-일별 종가 그래프, CSV 내보내기, 라이트/다크 모드 전환을 구현했습니다. Function Calling과 MCP/GPT Actions 연동은 실제 배포 검증 뒤 검토합니다.
-
-### 전용 URL 접근
-
-Render 비밀 환경 변수 `SITE_ACCESS_TOKEN`에 충분히 긴 무작위 코드를 설정합니다. 사용자에게는 `https://<vercel-domain>/#access=<SITE_ACCESS_TOKEN>` 형태의 전체 URL을 전달합니다. 브라우저는 URL 조각의 코드를 세션 저장소에 보관하고 주소창에서 지운 뒤, API 요청의 `X-Access-Key` 헤더로 전송합니다. 코드가 없거나 틀리면 데이터와 채팅 API는 거부됩니다. `/health`, Swagger UI `/docs`, OpenAPI 명세 `/openapi.json`은 과제 확인을 위해 공개합니다. Swagger에서 API를 직접 실행할 때는 오른쪽 위 **Authorize**에 접속 코드를 입력하세요. 링크를 받은 사람은 데이터 수정·삭제와 AI 채팅까지 사용할 수 있으므로 신뢰하는 사람에게만 공유하세요. 코드를 바꾸면 기존 링크는 무효화됩니다.
+실제 배포 화면과 API 문서 캡처는 [`screenshots/`](screenshots/)에 있습니다. 공개 채팅을 활성화하면 방문자가 OpenAI API 사용량을 발생시킬 수 있습니다.
