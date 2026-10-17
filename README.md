@@ -7,13 +7,13 @@
 | 요구사항 | 상태 | 확인 위치 |
 |---|---|---|
 | 100개 이상 시계열 데이터 | 완료 | 250거래일 CSV |
-| FastAPI · Firestore · OpenAI API | 코드 완료, 실제 연결 대기 | `backend/app/` |
+| FastAPI · Firestore · OpenAI API | FastAPI·Firestore 연결 완료, OpenAI 키 입력 대기 | `backend/app/` |
 | 데이터 CRUD · 요약 API | 완료 | `/api/data`, `/api/data/summary` |
 | 대화 기록 저장 · 불러오기 | 완료 | `/api/conversations` |
 | 요약을 반영한 AI 채팅 | 코드 완료, 실제 응답 검증 대기 | `/api/chat` |
 | 바닐라 HTML · CSS · JavaScript | 완료 | `frontend/` |
-| Render · Vercel 배포 | 계정 연결 · 환경 변수 설정 대기 | `render.yaml`, `frontend/vercel.json` |
-| README · 제출 스크린샷 | README 완료, 실제 서비스 캡처 대기 | 이 문서, `screenshots/` |
+| Render · Vercel 배포 | 완료 | 아래 실제 URL |
+| README · 제출 스크린샷 | 운영 화면·API 문서 캡처 완료, AI 답변 캡처 대기 | 이 문서, `screenshots/` |
 
 기존 저장소의 CSV와 API 구조를 유지하며 누락된 검증·요약·화면 기능을 보완했습니다. 로컬 UI 미리보기는 실제 서비스 캡처로 제출하지 않습니다.
 
@@ -97,17 +97,15 @@ python -m http.server 3000
 
 | 제출 URL | 값 |
 |---|---|
-| 프론트엔드 | 배포 후 입력 |
-| 백엔드 API | 배포 후 입력 |
-| Swagger UI | 배포 후 입력 (`/docs`) |
+| 프론트엔드 | https://sese15260-samsung-stock-chat.vercel.app/ |
+| 백엔드 API | https://sese15260-samsung-stock-api.onrender.com |
+| Swagger UI | https://sese15260-samsung-stock-api.onrender.com/docs |
+
+현재 Render에는 `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`, `SITE_ACCESS_TOKEN`이 비밀 환경 변수로 설정되어 있습니다. OpenAI 채팅을 켜려면 Render 서비스의 **Environment → Edit → Add variable**에서 `OPENAI_API_KEY`를 추가하고 **Save, rebuild, and deploy**를 선택합니다. 키는 채팅이나 GitHub에 입력하지 않습니다.
 
 ## 제출 스크린샷
 
-실제 Firebase/OpenAI 연결과 배포 후 다음 화면을 캡처해 `screenshots/`에 보관합니다. 비밀키가 보이지 않게 하세요.
-
-1. 데이터 요약과 사용자 질문·AI 답변이 동시에 보이는 채팅 화면
-2. 종가 추가 또는 수정·삭제 결과가 보이는 데이터 관리 화면
-3. 이전 대화를 선택해 메시지를 다시 불러온 화면
+현재 실제 배포 화면을 `screenshots/live-dashboard.png`와 `screenshots/live-api-docs.png`에 보관했습니다. 전자는 Firestore의 250건 요약·그래프·관리 화면, 후자는 공개 API 목록을 보여줍니다. OpenAI 키 설정 후 AI 질문·답변과 저장된 대화 재불러오기 화면을 추가해야 합니다. 비밀키나 전용 접속 코드는 캡처하지 마세요.
 
 ## 로컬 검증
 
@@ -117,7 +115,7 @@ pip install pytest httpx
 pytest -q
 ```
 
-테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 실제 Firestore·OpenAI 통합 동작과 제출 스크린샷은 계정 키를 설정한 뒤 확인해야 합니다.
+테스트는 데이터 250건의 날짜/값 유효성, 핵심 API 입력 검증, 요약의 AI 문맥 주입과 대화 저장을 확인하며, 외부 유료 API를 호출하지 않습니다. 배포 화면에서 Firestore 250건과 요약을 확인했습니다. OpenAI 실응답은 사용자가 키를 설정한 뒤 확인해야 합니다.
 
 
 ## 보너스 과제
@@ -126,4 +124,4 @@ pytest -q
 
 ### 전용 URL 접근
 
-Render 비밀 환경 변수 `SITE_ACCESS_TOKEN`에 32바이트 이상의 무작위 코드를 설정합니다. 사용자에게는 `https://<vercel-domain>/#access=<SITE_ACCESS_TOKEN>` 형태의 전체 URL을 전달합니다. 브라우저는 URL 조각의 코드를 세션 저장소에 보관하고 주소창에서 지운 뒤, API 요청의 `X-Access-Key` 헤더로 전송합니다. 코드가 없거나 틀리면 데이터와 채팅 API는 거부됩니다. `/health`, Swagger UI `/docs`, OpenAPI 명세 `/openapi.json`은 과제 확인을 위해 공개합니다. Swagger에서 API를 직접 실행할 때는 오른쪽 위 **Authorize**에 접속 코드를 입력하세요. 링크를 받은 사람은 데이터 수정·삭제와 AI 채팅까지 사용할 수 있으므로 신뢰하는 사람에게만 공유하세요. 코드를 바꾸면 기존 링크는 무효화됩니다.
+Render 비밀 환경 변수 `SITE_ACCESS_TOKEN`에 충분히 긴 무작위 코드를 설정합니다. 사용자에게는 `https://<vercel-domain>/#access=<SITE_ACCESS_TOKEN>` 형태의 전체 URL을 전달합니다. 브라우저는 URL 조각의 코드를 세션 저장소에 보관하고 주소창에서 지운 뒤, API 요청의 `X-Access-Key` 헤더로 전송합니다. 코드가 없거나 틀리면 데이터와 채팅 API는 거부됩니다. `/health`, Swagger UI `/docs`, OpenAPI 명세 `/openapi.json`은 과제 확인을 위해 공개합니다. Swagger에서 API를 직접 실행할 때는 오른쪽 위 **Authorize**에 접속 코드를 입력하세요. 링크를 받은 사람은 데이터 수정·삭제와 AI 채팅까지 사용할 수 있으므로 신뢰하는 사람에게만 공유하세요. 코드를 바꾸면 기존 링크는 무효화됩니다.
