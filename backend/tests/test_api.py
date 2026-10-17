@@ -77,7 +77,7 @@ def test_chat_injects_summary_and_saves(monkeypatch):
     assert '"latest": 105.0' in prompts[0]["messages"][0]["content"]
     assert prompts[0]["messages"][-1]["role"] == "user"
     assert prompts[0]["model"] == "gpt-5-mini"
-    assert prompts[0]["max_completion_tokens"] == 500
+    assert prompts[0]["max_completion_tokens"] == 2000
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]
 
 
