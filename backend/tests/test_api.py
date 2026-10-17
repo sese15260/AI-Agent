@@ -49,6 +49,7 @@ def test_endpoints_and_validation(monkeypatch):
 def test_chat_injects_summary_and_saves(monkeypatch):
     monkeypatch.setenv("SITE_ACCESS_TOKEN", "test-access-key")
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://copa.codyssey.kr/v1")
     rows = [{"id": "2026-01-01", "date": "2026-01-01", "value": 100.0, "memo": ""}, {"id": "2026-01-02", "date": "2026-01-02", "value": 105.0, "memo": ""}]
     saved = {}
     prompts = []
@@ -59,21 +60,22 @@ def test_chat_injects_summary_and_saves(monkeypatch):
         return {"id": "c1"}
     monkeypatch.setattr(main.store, "conversation_save", save)
     monkeypatch.setenv("OPENAI_API_KEY", "test-only")
-    class FakeResponses:
+    client_options = {}
+    class FakeCompletions:
         def create(self, **kwargs):
             prompts.append(kwargs)
-            return type("Response", (), {"output_text": "최근 종가는 105원입니다."})()
+            return type("Completion", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": "최근 종가는 105원입니다."})()})()]})()
     class FakeClient:
         def __init__(self, **kwargs):
-            self.responses = FakeResponses()
+            client_options.update(kwargs)
+            self.chat = type("Chat", (), {"completions": FakeCompletions()})()
     monkeypatch.setattr(main, "OpenAI", FakeClient)
     response = TestClient(main.app).post("/api/chat", json={"message": "최근 종가는?"})
     assert response.status_code == 200
     assert response.json()["conversation_id"] == "c1"
-    assert '"latest": 105.0' in prompts[0]["instructions"]
-    assert prompts[0]["input"][-1]["role"] == "user"
-    assert prompts[0]["store"] is False
-    assert prompts[0]["model"] == "gpt-6-luna"
-    assert prompts[0]["reasoning"] == {"effort": "none"}
-    assert prompts[0]["max_output_tokens"] == 500
+    assert client_options["base_url"] == "https://copa.codyssey.kr/v1"
+    assert '"latest": 105.0' in prompts[0]["messages"][0]["content"]
+    assert prompts[0]["messages"][-1]["role"] == "user"
+    assert prompts[0]["model"] == "gpt-5-mini"
+    assert prompts[0]["max_completion_tokens"] == 500
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]

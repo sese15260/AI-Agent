@@ -129,12 +129,9 @@ def chat(item: ChatIn):
     try:
         client = OpenAI(
             api_key=api_key,
-            base_url=os.getenv(
-                "OPENAI_BASE_URL",
-                "https://copa.codyssey.kr/v1"
-            ),
-            timeout=30.0
-)
+            base_url=os.getenv("OPENAI_BASE_URL", "https://copa.codyssey.kr/v1"),
+            timeout=30.0,
+        )
         contents = [{"role": message["role"], "content": message["content"]} for message in messages[-12:]]
         contents.append({"role": "user", "content": item.message})
         model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
@@ -144,11 +141,11 @@ def chat(item: ChatIn):
             messages=[
                 {"role": "system", "content": system},
                 *contents,
-    ],
-    max_completion_tokens=500,
-)
+            ],
+            max_completion_tokens=500,
+        )
 
-answer = completion.choices[0].message.content or "답변을 생성하지 못했습니다."
+        answer = completion.choices[0].message.content or "답변을 생성하지 못했습니다."
     except Exception as exc:
         logger.warning("OpenAI request failed: type=%s status=%s code=%s", type(exc).__name__, getattr(exc, "status_code", None), getattr(exc, "code", None))
         raise HTTPException(502, "AI 응답을 가져오지 못했습니다. 키와 사용량을 확인해 주세요") from exc
