@@ -142,7 +142,7 @@ def chat(item: ChatIn):
                 {"role": "system", "content": system},
                 *contents,
             ],
-            max_completion_tokens=500,
+            max_completion_tokens=2000,
         )
 
         choice = completion.choices[0]
