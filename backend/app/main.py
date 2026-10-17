@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import secrets
 
@@ -12,6 +13,8 @@ from openai import OpenAI
 from . import store
 from .models import ChatIn, ConversationIn, DataIn
 from .summary import summarize
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 app = FastAPI(title="삼성전자 주가 AI 채팅", version="1.0.0")
@@ -139,6 +142,7 @@ def chat(item: ChatIn):
         )
         answer = completion.output_text or "답변을 생성하지 못했습니다."
     except Exception as exc:
+        logger.warning("OpenAI request failed: type=%s status=%s code=%s", type(exc).__name__, getattr(exc, "status_code", None), getattr(exc, "code", None))
         raise HTTPException(502, "AI 응답을 가져오지 못했습니다. 키와 사용량을 확인해 주세요") from exc
     new_messages = [*messages, {"role": "user", "content": item.message}, {"role": "assistant", "content": answer}]
     title = old["title"] if old else item.message[:60]
