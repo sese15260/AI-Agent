@@ -2,6 +2,21 @@
 
 삼성전자(005930)의 일별 종가를 Firestore에 보관하고, 요약 통계를 AI 채팅의 시스템 문맥에 넣어 데이터에 근거한 답변을 제공하는 웹 서비스입니다. 투자 판단이나 실시간 시세 제공 목적이 아닙니다.
 
+## 과제 체크리스트
+
+| 요구사항 | 상태 | 확인 위치 |
+|---|---|---|
+| 100개 이상 시계열 데이터 | 완료 | 250거래일 CSV |
+| FastAPI · Firestore · OpenAI API | 코드 완료, 실제 연결 대기 | `backend/app/` |
+| 데이터 CRUD · 요약 API | 완료 | `/api/data`, `/api/data/summary` |
+| 대화 기록 저장 · 불러오기 | 완료 | `/api/conversations` |
+| 요약을 반영한 AI 채팅 | 코드 완료, 실제 응답 검증 대기 | `/api/chat` |
+| 바닐라 HTML · CSS · JavaScript | 완료 | `frontend/` |
+| Render · Vercel 배포 | 계정 연결 · 환경 변수 설정 대기 | `render.yaml`, `frontend/vercel.json` |
+| README · 제출 스크린샷 | README 완료, 실제 서비스 캡처 대기 | 이 문서, `screenshots/` |
+
+기존 저장소의 CSV와 API 구조를 유지하며 누락된 검증·요약·화면 기능을 보완했습니다. 로컬 UI 미리보기는 실제 서비스 캡처로 제출하지 않습니다.
+
 ## 기술 스택
 
 - 백엔드: Python 3.10+, FastAPI, Pydantic, Firebase Admin SDK / Firestore, OpenAI Responses API (`openai`)
@@ -17,7 +32,7 @@
 - CSV SHA-256: `48268aacc23d322c64427a341085e06d119354c669ca0bb18846c46e72b91e76`
 - CSV의 `date`, `value`, `memo`가 각각 거래일, 종가, 설명입니다. 데이터는 앱 시작 시 자동 반영되지 않습니다. 최초 배포 때 `seed.py`를 실행해야 합니다.
 
-요약은 전체 기간의 평균·최대·최소·첫·최근 종가, 전체 변동률, 최근 20거래일 첫날 대비 변동률을 계산합니다. 변동률이 +1% 초과면 상승, -1% 미만이면 하락, 나머지는 보합으로 표시합니다. 채팅은 이 요약만 주입하므로 CSV의 개별 거래일 가격을 전부 알지는 못합니다.
+요약은 전체 기간의 평균·최대·최소·첫·최근 종가, 전체 변동률, 최근 20거래일 첫날 대비 변동률, 월별 평균과 최근 20개 종가를 계산합니다. 변동률이 +1% 초과면 상승, -1% 미만이면 하락, 나머지는 보합으로 표시합니다. 채팅은 이 요약을 주입하므로 요약에 없는 개별 거래일 가격은 단정하지 않습니다.
 
 ## 로컬 실행
 
@@ -30,7 +45,8 @@ python -m venv .venv
 pip install -r requirements.txt
 Copy-Item .env.example .env
 # .env에 실제 키와 저장소 밖의 서비스 계정 파일 경로를 설정
-python seed.py
+python seed.py --dry-run  # 250건과 기간 확인, Firestore 쓰기 없음
+python seed.py            # 빠진 날짜만 Firestore에 추가
 uvicorn app.main:app --reload
 ```
 
@@ -43,14 +59,14 @@ cd frontend
 python -m http.server 3000
 ```
 
-`http://localhost:3000`에 접속합니다. 로컬 CORS 허용 주소는 `backend/.env`의 `ALLOWED_ORIGINS`에 포함돼야 합니다.
+`http://localhost:3000/#access=<SITE_ACCESS_TOKEN>`에 접속합니다. 로컬 CORS 허용 주소는 `backend/.env`의 `ALLOWED_ORIGINS`에 포함돼야 합니다.
 
 ## 환경 변수
 
 | 위치 | 변수 | 설명 |
 |---|---|---|
 | 백엔드 | `OPENAI_API_KEY` | OpenAI API 비밀키 |
-| 백엔드 | `OPENAI_MODEL` | 선택. 기본값 `gpt-4.1-mini` |
+| 백엔드 | `OPENAI_MODEL` | 선택. 기본값 `gpt-6-luna` |
 | 백엔드 | `FIREBASE_SERVICE_ACCOUNT_JSON` | 서비스 계정 JSON 전체 문자열 |
 | 백엔드 | `FIREBASE_SERVICE_ACCOUNT_PATH` | JSON 대신 사용할 로컬 파일 경로 |
 | 백엔드 | `ALLOWED_ORIGINS` | 쉼표로 구분한 프론트 주소. 마지막 `/` 없이 설정 |
@@ -69,13 +85,13 @@ python -m http.server 3000
 | GET / DELETE | `/api/conversations/{id}` | 전체 대화 불러오기 / 삭제 |
 | POST | `/api/chat` | 요약을 시스템 문맥에 넣고 AI 응답 생성, 대화 자동 저장 |
 
-`POST /api/chat` 예시: `{"message":"최근 20거래일 추세는?","conversation_id":null}`. 기존 대화의 `conversation_id`를 넘기면 이어서 저장합니다. 사용자 질문은 최대 2,000자, 출력은 최대 800토큰으로 제한합니다. Firestore 컬렉션은 `data`, `conversations`입니다. `data` 문서 ID는 거래일 문자열이며 대화 ID는 Firestore 자동 ID입니다.
+`POST /api/chat` 예시: `{"message":"최근 20거래일 추세는?","conversation_id":null}`. 기존 대화의 `conversation_id`를 넘기면 이어서 저장합니다. 사용자 질문은 최대 2,000자, 출력은 최대 500토큰으로 제한합니다. Firestore 컬렉션은 `data`, `conversations`입니다. `data` 문서 ID는 거래일 문자열이며 대화 ID는 Firestore 자동 ID입니다.
 
 ## 배포
 
 1. 이 폴더를 GitHub 저장소에 푸시합니다. `.env`와 서비스 계정 JSON이 포함되지 않았는지 `git status`로 확인합니다.
-2. Render에서 GitHub 저장소를 연결하고 저장소 루트의 [`render.yaml`](render.yaml)로 Blueprint를 만들거나 Web Service를 수동 생성합니다. Root Directory `backend`, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`입니다. Render 대시보드에서 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`를 비밀 환경 변수로 입력합니다.
-3. Firestore에 초기 데이터를 넣습니다. 로컬에서 Render와 같은 Firebase 프로젝트 키를 설정한 뒤 `cd backend; python seed.py`를 한 번 실행합니다. 250건을 날짜 ID로 덮어써 재실행해도 중복되지 않습니다.
+2. Render에서 GitHub 저장소를 연결하고 저장소 루트의 [`render.yaml`](render.yaml)로 Blueprint를 만들거나 Web Service를 수동 생성합니다. `render.yaml`은 무료 인스턴스를 명시합니다. Root Directory `backend`, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`입니다. Render 대시보드에서 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`, `SITE_ACCESS_TOKEN`을 비밀 환경 변수로 입력합니다.
+3. Firestore에 초기 데이터를 넣습니다. 로컬에서 Render와 같은 Firebase 프로젝트 키를 설정한 뒤 `cd backend; python seed.py`를 실행합니다. 재실행하면 이미 있는 날짜는 건너뛰어 사용자가 수정한 데이터를 덮어쓰지 않습니다.
 4. Vercel에서 같은 저장소를 연결하고 Root Directory를 `frontend`로 설정합니다. 환경 변수 `API_BASE_URL=https://<render-service>.onrender.com`을 입력하고 배포합니다. `frontend/build.mjs`가 이 값을 공개 `config.js`에 삽입합니다.
 5. Vercel URL을 Render `ALLOWED_ORIGINS`에 추가하고 Render를 다시 배포합니다. Vercel 채팅 화면과 Render `/docs`를 확인합니다. 무료 Render 서비스는 첫 요청이 느릴 수 있어 화면에 안내 문구가 있습니다.
 
@@ -106,8 +122,8 @@ pytest -q
 
 ## 보너스 과제
 
-필수 기능의 실제 배포 검증을 마친 뒤 그래프·CSV 내보내기·다크 모드 및 도구 호출 연동을 검토합니다.
+일별 종가 그래프, CSV 내보내기, 라이트/다크 모드 전환을 구현했습니다. Function Calling과 MCP/GPT Actions 연동은 실제 배포 검증 뒤 검토합니다.
 
 ### 전용 URL 접근
 
-Render 비밀 환경 변수 `SITE_ACCESS_TOKEN`에 32바이트 이상의 무작위 코드를 설정합니다. 사용자에게는 `https://<vercel-domain>/#access=<SITE_ACCESS_TOKEN>` 형태의 전체 URL을 전달합니다. 브라우저는 URL 조각의 코드를 세션 저장소에 보관하고 주소창에서 지운 뒤, API 요청의 `X-Access-Key` 헤더로 전송합니다. 코드가 없거나 틀리면 API와 문서 화면은 거부됩니다. `/health`만 배포 상태 확인을 위해 공개됩니다. 링크를 받은 사람은 데이터 수정·삭제와 AI 채팅까지 사용할 수 있으므로 신뢰하는 사람에게만 공유하세요. 코드를 바꾸면 기존 링크는 무효화됩니다.
+Render 비밀 환경 변수 `SITE_ACCESS_TOKEN`에 32바이트 이상의 무작위 코드를 설정합니다. 사용자에게는 `https://<vercel-domain>/#access=<SITE_ACCESS_TOKEN>` 형태의 전체 URL을 전달합니다. 브라우저는 URL 조각의 코드를 세션 저장소에 보관하고 주소창에서 지운 뒤, API 요청의 `X-Access-Key` 헤더로 전송합니다. 코드가 없거나 틀리면 데이터와 채팅 API는 거부됩니다. `/health`, Swagger UI `/docs`, OpenAPI 명세 `/openapi.json`은 과제 확인을 위해 공개합니다. Swagger에서 API를 직접 실행할 때는 오른쪽 위 **Authorize**에 접속 코드를 입력하세요. 링크를 받은 사람은 데이터 수정·삭제와 AI 채팅까지 사용할 수 있으므로 신뢰하는 사람에게만 공유하세요. 코드를 바꾸면 기존 링크는 무효화됩니다.

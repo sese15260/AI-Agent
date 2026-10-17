@@ -3,20 +3,28 @@ import os
 from datetime import datetime, timezone
 
 import firebase_admin
+from fastapi import HTTPException
 from firebase_admin import credentials, firestore
 
 
 def db():
-    if not firebase_admin._apps:
+    try:
+        firebase_admin.get_app()
+    except ValueError:
         raw = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
         path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-        if raw:
-            credential = credentials.Certificate(json.loads(raw))
-        elif path:
-            credential = credentials.Certificate(path)
-        else:
-            raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH is required")
-        firebase_admin.initialize_app(credential)
+        try:
+            if raw:
+                credential = credentials.Certificate(json.loads(raw))
+            elif path:
+                credential = credentials.Certificate(path)
+            else:
+                raise HTTPException(503, "Firestore 자격 증명이 설정되지 않았습니다")
+            firebase_admin.initialize_app(credential)
+        except HTTPException:
+            raise
+        except (ValueError, TypeError, OSError, KeyError) as exc:
+            raise HTTPException(503, "Firestore 자격 증명을 확인해 주세요") from exc
     return firestore.client()
 
 
@@ -34,17 +42,21 @@ def data_create(item):
 
 
 def data_update(id, item):
-    ref = db().collection("data").document(id)
+    client = db()
+    collection = client.collection("data")
+    ref = collection.document(id)
     if not ref.get().exists:
         return None
-    if id != item.date.isoformat() and db().collection("data").document(item.date.isoformat()).get().exists:
+    if id != item.date.isoformat() and collection.document(item.date.isoformat()).get().exists:
         raise ValueError("date already exists")
-    if id != item.date.isoformat():
-        ref.delete()
-        ref = db().collection("data").document(item.date.isoformat())
     payload = item.model_dump(mode="json")
-    ref.set(payload)
-    return {**payload, "id": ref.id}
+    target = collection.document(item.date.isoformat())
+    batch = client.batch()
+    batch.set(target, payload)
+    if id != target.id:
+        batch.delete(ref)
+    batch.commit()
+    return {**payload, "id": target.id}
 
 
 def data_delete(id):

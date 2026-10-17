@@ -8,3 +8,4 @@ __pycache__/
 *firebase-key*.json
 *firebase-adminsdk*.json
 frontend/dist/
+.qa-*.png

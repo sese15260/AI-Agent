@@ -14,7 +14,10 @@ def test_dataset_is_real_sized_and_ordered():
     assert len({row["date"] for row in rows}) == len(rows)
     assert rows == sorted(rows, key=lambda row: row["date"])
     assert all(float(row["value"]) > 0 for row in rows)
-    assert summarize(rows)["metrics"]["latest"] == float(rows[-1]["value"])
+    summary = summarize(rows)
+    assert summary["metrics"]["latest"] == float(rows[-1]["value"])
+    assert len(summary["recent"]) == 20
+    assert len(summary["monthly"]) >= 12
 
 
 def test_endpoints_and_validation(monkeypatch):
@@ -27,6 +30,11 @@ def test_endpoints_and_validation(monkeypatch):
     assert client.get("/health").status_code == 200
     assert TestClient(main.app).get("/api/data").status_code == 401
     assert TestClient(main.app, headers={"X-Access-Key": "wrong"}).get("/api/data").status_code == 401
+    assert TestClient(main.app).get("/docs").status_code == 200
+    schema = TestClient(main.app).get("/openapi.json")
+    assert schema.status_code == 200
+    assert schema.json()["components"]["securitySchemes"]["AccessKey"]["name"] == "X-Access-Key"
+    assert schema.json()["paths"]["/api/data"]["get"]["security"] == [{"AccessKey": []}]
     assert client.get("/docs").status_code == 200
     assert client.post("/api/data", json={"date": "2026-01-01", "value": -1}).status_code == 422
     assert client.post("/api/data", json={"date": "2026-01-01", "value": 100, "memo": "test"}).status_code == 201
@@ -36,6 +44,7 @@ def test_endpoints_and_validation(monkeypatch):
 
 def test_chat_injects_summary_and_saves(monkeypatch):
     monkeypatch.setenv("SITE_ACCESS_TOKEN", "test-access-key")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
     rows = [{"id": "2026-01-01", "date": "2026-01-01", "value": 100.0, "memo": ""}, {"id": "2026-01-02", "date": "2026-01-02", "value": 105.0, "memo": ""}]
     saved = {}
     prompts = []
@@ -60,4 +69,7 @@ def test_chat_injects_summary_and_saves(monkeypatch):
     assert '"latest": 105.0' in prompts[0]["instructions"]
     assert prompts[0]["input"][-1]["role"] == "user"
     assert prompts[0]["store"] is False
+    assert prompts[0]["model"] == "gpt-6-luna"
+    assert prompts[0]["reasoning"] == {"effort": "none"}
+    assert prompts[0]["max_output_tokens"] == 500
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]
