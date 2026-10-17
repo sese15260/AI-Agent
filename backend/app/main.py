@@ -127,20 +127,28 @@ def chat(item: ChatIn):
     if not api_key:
         raise HTTPException(503, "OPENAI_API_KEY가 설정되지 않았습니다")
     try:
-        client = OpenAI(api_key=api_key, timeout=30.0)
+        client = OpenAI(
+            api_key=api_key,
+            base_url=os.getenv(
+                "OPENAI_BASE_URL",
+                "https://copa.codyssey.kr/v1"
+            ),
+            timeout=30.0
+)
         contents = [{"role": message["role"], "content": message["content"]} for message in messages[-12:]]
         contents.append({"role": "user", "content": item.message})
-        model = os.getenv("OPENAI_MODEL", "gpt-6-luna")
-        model_options = {"reasoning": {"effort": "none"}} if model == "gpt-6-luna" else {}
-        completion = client.responses.create(
+        model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+
+        completion = client.chat.completions.create(
             model=model,
-            instructions=system,
-            input=contents,
-            max_output_tokens=500,
-            store=False,
-            **model_options,
-        )
-        answer = completion.output_text or "답변을 생성하지 못했습니다."
+            messages=[
+                {"role": "system", "content": system},
+                *contents,
+    ],
+    max_completion_tokens=500,
+)
+
+answer = completion.choices[0].message.content or "답변을 생성하지 못했습니다."
     except Exception as exc:
         logger.warning("OpenAI request failed: type=%s status=%s code=%s", type(exc).__name__, getattr(exc, "status_code", None), getattr(exc, "code", None))
         raise HTTPException(502, "AI 응답을 가져오지 못했습니다. 키와 사용량을 확인해 주세요") from exc
