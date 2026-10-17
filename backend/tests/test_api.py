@@ -64,7 +64,7 @@ def test_chat_injects_summary_and_saves(monkeypatch):
     class FakeCompletions:
         def create(self, **kwargs):
             prompts.append(kwargs)
-            return type("Completion", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": "최근 종가는 105원입니다."})()})()]})()
+            return type("Completion", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": "최근 종가는 105원입니다."})(), "finish_reason": "stop"})()]})()
     class FakeClient:
         def __init__(self, **kwargs):
             client_options.update(kwargs)
@@ -79,3 +79,27 @@ def test_chat_injects_summary_and_saves(monkeypatch):
     assert prompts[0]["model"] == "gpt-5-mini"
     assert prompts[0]["max_completion_tokens"] == 500
     assert [m["role"] for m in saved["messages"]] == ["user", "assistant"]
+
+
+def test_empty_ai_response_is_not_saved(monkeypatch, caplog):
+    monkeypatch.setattr(main.store, "data_list", lambda: [{"date": "2026-01-01", "value": 100}])
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    saved = []
+    monkeypatch.setattr(main.store, "conversation_save", lambda *args: saved.append(args))
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            usage = type("Usage", (), {"completion_tokens": 500, "completion_tokens_details": type("Details", (), {"reasoning_tokens": 500})()})()
+            choice = type("Choice", (), {"message": type("Message", (), {"content": None})(), "finish_reason": "length"})()
+            return type("Completion", (), {"choices": [choice], "usage": usage})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setattr(main, "OpenAI", FakeClient)
+    response = TestClient(main.app).post("/api/chat", json={"message": "최근 종가는?"})
+    assert response.status_code == 502
+    assert saved == []
+    assert "finish_reason=length output_tokens=500 reasoning_tokens=500" in caplog.text
+    assert "test-only" not in caplog.text

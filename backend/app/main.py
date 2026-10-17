@@ -145,7 +145,20 @@ def chat(item: ChatIn):
             max_completion_tokens=500,
         )
 
-        answer = completion.choices[0].message.content or "답변을 생성하지 못했습니다."
+        choice = completion.choices[0]
+        answer = choice.message.content
+        if not answer or not answer.strip():
+            usage = completion.usage
+            details = getattr(usage, "completion_tokens_details", None)
+            logger.warning(
+                "AI response had no text: finish_reason=%s output_tokens=%s reasoning_tokens=%s",
+                choice.finish_reason,
+                getattr(usage, "completion_tokens", None),
+                getattr(details, "reasoning_tokens", None),
+            )
+            raise HTTPException(502, "AI가 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요")
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.warning("OpenAI request failed: type=%s status=%s code=%s", type(exc).__name__, getattr(exc, "status_code", None), getattr(exc, "code", None))
         raise HTTPException(502, "AI 응답을 가져오지 못했습니다. 키와 사용량을 확인해 주세요") from exc
